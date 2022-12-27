@@ -1,57 +1,64 @@
 import { JSON36 } from "./helpers"
 
+resourcesFind = ( resolver, resources ) -> 
+  if resolver.action?
+    if resolver.action.name == "request"
+      { domain, method, resource } = resolver.action.value
+      resources.push {
+        domain
+        method
+        name: resource.name
+      }
+    else
+      if resolver.action.value?
+        resourcesFind resolver.action.value, resources
+
 store = ({ rune, nonce }) ->
-  [ { identity, domain, grants, scope } ] = JSON36.decode rune
+  [ { identity, domain, grants, resolvers } ] = JSON36.decode rune
   if (data = localStorage.getItem identity)?
     _identity = JSON.parse data
   else
     _identity = {}
-  _identity[ domain ] ?= []
+  _identity[ domain ] ?= {}
+  _identity[ domain ][ "grants" ] = []
+  _identity[ domain ][ "resolvers" ] = {}
+  for key, resolver of resolvers
+    resources = []
+    resourcesFind resolver, resources
+    _identity[ domain ][ "resolvers" ][ key ] = { resources }
   for grant in grants
+    bundle = {}
+    if grant.resolvers?
+      bundle.resolvers = grant.resolvers
     if grant.resources.exclude?
-      bundle = {}
       bundle.exclude = grant.resources.exclude
-      for method in grant.methods
-        { bindings } = grant
-        bundle[ method ] ?= []
-        bundle[ method ].push { rune, nonce, bindings, scope }
-      _identity[ domain ].push bundle
     else 
-      if grant.resources.include?
-        grant.resources = grant.resources.include
-      bundle = {}
-      bundle.include = grant.resources
-      for method in grant.methods
-        { bindings } = grant
-        bundle[ method ] ?= []
-        bundle[ method ].push { rune, nonce, bindings, scope }
-      _identity[ domain ].push bundle
+      bundle.include = grant.resources.include ? grant.resources
+    for method in grant.methods
+      bundle[ method ] = { rune, nonce }
+    _identity[ domain ][ "grants" ].push bundle
   localStorage.setItem identity, JSON.stringify _identity
   null
 
-lookup = ({ identity, domain, resource, bindings, method }) ->
+lookup = ({ identity, domain, resource, method }) ->
   if (data = localStorage.getItem identity)?
     _identity = JSON.parse data
     if _identity[ domain ]?
-      for grant in _identity[domain]
+      for grant in _identity[ domain ][ "grants" ]
+        checkResource = false
         if grant.exclude?
           if !( resource in grant.exclude )
-            if ( results = grant[ method ])?
-              for result in results
-                if result.scope?
-                  if bindings[result.scope] == result.bindings[result.scope]
-                    return result
-                else
-                  return result
+            checkResource = true
         else if grant.include?
           if ( resource in grant.include )
-            if ( results = grant[ method ])?
-              for result in results
-                if result.scope?
-                  if bindings[result.scope] == result.bindings[result.scope]
-                    return result
-                else
-                  return result
+            checkResource = true
+        if checkResource
+          if ( result = grant[ method ])?
+            resources = []
+            if grant.resolvers?
+              for resolver in grant.resolvers
+                resources = resources.concat _identity[ domain ][ "resolvers" ][ resolver ].resources
+            return { credential: result, resources }
 
 has = ( query ) -> ( lookup query )?
 
