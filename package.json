@@ -29,6 +29,7 @@
     "@dashkite/sky-presets": "file:../sky-presets"
   },
   "dependencies": {
+    "@dashkite/joy": "^0.3.16",
     "panda-confidential": "^3.1.2"
   }
 }

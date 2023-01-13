@@ -7,7 +7,7 @@ import { confidential } from "panda-confidential"
 
 Confidential = confidential()
 
-import { JSON36 } from "../src/helpers"
+import { JSON64 } from "../src/helpers"
 import { store, lookup } from "../src"
 import "./local-storage"
 
