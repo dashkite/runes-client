@@ -22,22 +22,23 @@ getResolverResources = ( resolver ) ->
 checkExpiration = ( expires ) ->
   ( new Date expires ).getTime() >= ( Date.now() + 1000 )
 
-removeExpired = ( runes, expired ) ->
-  runes = runes.filter ( tuple ) ->
-    deleted = expired.some ( item ) ->
-      Val.equal item, tuple
-    !deleted
-
 getCandidateRunes = ( resource, method, grants ) ->
   candidates = []
   for grant in grants
     if grant.exclude?
-      if !( resource in grant.exclude ) && grant[ method ]?
-        candidates.push grant[ method ]
-    else if grant.include? && grant[ method ]?
+      if !( resource in grant.exclude ) && grant.methods[ method ]?
+        candidates.push grant.methods[ method ]
+    else if grant.include? && grant.methods[ method ]?
       if ( resource in grant.include )
-        candidates.push grant[ method ]
+        candidates.push grant.methods[ method ]
   candidates
+
+removeRune = ({ rune, nonce }, grants ) ->
+  grants.filter ( grant ) ->
+    for key, value of grant.methods
+      if value.rune == rune && value.nonce == nonce
+        return false
+    return true
 
 bestMatch = ( runes ) ->
   if runes?
@@ -47,14 +48,12 @@ bestMatch = ( runes ) ->
       { rune, nonce, expires, numResolvers, grantResolvers } = tuple
       if checkExpiration expires
         if numResolvers == 0
-          removeExpired runes, expired
-          return { rune, nonce }
+          return { rune, nonce, expired }
         else if !best.numResolvers? || numResolvers < best.numResolvers
           best = { numResolvers, tuple: { rune, nonce, resolvers: grantResolvers } }
       else
-        expired.push tuple
-    removeExpired runes, expired
-    return best.tuple
+        expired.push { rune, nonce }
+    return { best.tuple..., expired }
 
 store = ({ rune, nonce }) ->
   [ { identity, domain, grants, resolvers, expires } ] = JSON64.decode rune
@@ -65,7 +64,8 @@ store = ({ rune, nonce }) ->
   _identity[ domain ] ?= []
   numResolvers = if resolvers? then ( Object.keys resolvers ).length else 0
   for grant in grants
-    bundle = {}
+    bundle =
+      methods: {}
     if grant.resolvers?
       grantResolvers = {}
       for resolver in grant.resolvers
@@ -75,7 +75,7 @@ store = ({ rune, nonce }) ->
     else 
       bundle.include = grant.resources.include ? grant.resources
     for method in grant.methods
-      bundle[ method ] = { rune, nonce, expires, numResolvers, grantResolvers }
+      bundle.methods[ method ] = { rune, nonce, expires, numResolvers, grantResolvers }
     _identity[ domain ].push bundle
   localStorage.setItem identity, JSON.stringify _identity
   null
@@ -85,8 +85,11 @@ lookup = ({ identity, domain, resource, method }) ->
     _identity = JSON.parse data
     if _identity[ domain ]?
       candidates = getCandidateRunes resource, method, _identity[ domain ]
-      if ( result = bestMatch candidates )?
-        { rune, nonce, resolvers } = result
+      { rune, nonce, resolvers, expired } = bestMatch candidates
+      if rune? && nonce?
+        for item in expired
+          _identity[ domain ] = removeRune { rune: item.rune, nonce: item.nonce }, _identity[ domain ]
+        localStorage.setItem identity, JSON.stringify _identity
         resources = []
         if resolvers?
           for key, resolver of resolvers
@@ -95,4 +98,26 @@ lookup = ({ identity, domain, resource, method }) ->
 
 has = ( query ) -> ( lookup query )?
 
-export { store, lookup, has }
+hasGrant = ( rune, query ) ->
+  { resource, method } = query
+  [ { identity, domain, grants, resolvers, expires } ] = JSON64.decode rune
+  query.domain == domain && 
+    grants.some ( grant ) ->
+      if grant.resources.exclude?
+        if !( resource in grant.resources.exclude ) && ( method in grant.methods )
+          return true
+      else
+        resources = grant.resources.include ? grant.resources
+        if ( resource in resources ) && ( method in grant.methods )
+          return true
+      return false
+
+remove = ({ identity, domain, rune, nonce }) ->
+  if ( data = localStorage.getItem identity )?
+    _identity = JSON.parse data
+    if _identity[ domain ]?
+      _identity[ domain ] = removeRune { rune, nonce }, _identity[ domain ]
+      localStorage.setItem identity, JSON.stringify _identity
+null
+
+export { store, lookup, has, remove, hasGrant }
