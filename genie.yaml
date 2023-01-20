@@ -20,5 +20,3 @@ presets:
           glob:
             - "{src,test}/**/*.yaml"
       browser: *yaml
-
-sky: {}
