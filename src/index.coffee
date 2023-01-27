@@ -40,7 +40,7 @@ removeRune = ({ rune, nonce }, grants ) ->
         return false
     return true
 
-bestMatch = ( runes ) ->
+bestMatch = ( runes, includeBound ) ->
   if runes?
     expired = []
     best = {}
@@ -48,7 +48,7 @@ bestMatch = ( runes ) ->
       { rune, nonce, expires, numResolvers, grantResolvers } = tuple
       if checkExpiration expires
         if numResolvers == 0
-          return { rune, nonce, expired }
+          if !includeBound then break else return { rune, nonce, expired }
         else if !best.numResolvers? || numResolvers < best.numResolvers
           best = { numResolvers, tuple: { rune, nonce, resolvers: grantResolvers } }
       else
@@ -80,12 +80,12 @@ store = ({ rune, nonce }) ->
   localStorage.setItem identity, JSON.stringify _identity
   null
 
-lookup = ({ identity, domain, resource, method }) ->
+lookup = ({ identity, domain, resource, method }, { includeBound = true } = {}) ->
   if (data = localStorage.getItem identity)?
     _identity = JSON.parse data
     if _identity[ domain ]?
       candidates = getCandidateRunes resource, method, _identity[ domain ]
-      { rune, nonce, resolvers, expired } = bestMatch candidates
+      { rune, nonce, resolvers, expired } = bestMatch candidates, includeBound
       if rune? && nonce?
         for item in expired
           _identity[ domain ] = removeRune { rune: item.rune, nonce: item.nonce }, _identity[ domain ]
