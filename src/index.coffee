@@ -40,6 +40,13 @@ removeRune = ({ rune, nonce }, grants ) ->
         return false
     return true
 
+removeBoundRunes = ( grants ) ->
+  grants.filter ( grant ) ->
+    for key, value of grant.methods
+      if value.numResolvers == 0
+        return false
+    return true
+
 bestMatch = ( runes, includeBound ) ->
   if runes?
     expired = []
@@ -118,6 +125,14 @@ remove = ({ identity, domain, rune, nonce }) ->
     if _identity[ domain ]?
       _identity[ domain ] = removeRune { rune, nonce }, _identity[ domain ]
       localStorage.setItem identity, JSON.stringify _identity
-null
+  null
 
-export { store, lookup, has, remove, hasGrant }
+removeBound = ({ identity, domain }) ->
+  if ( data = localStorage.getItem identity )?
+    _identity = JSON.parse data
+    if _identity[ domain ]?
+      _identity[ domain ] = removeBoundRunes _identity[ domain ]
+      localStorage.setItem identity, JSON.stringify _identity
+  null
+
+export { store, lookup, has, remove, hasGrant, removeBound }
