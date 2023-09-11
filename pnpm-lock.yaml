@@ -25,9 +25,12 @@ devDependencies:
   '@dashkite/genie':
     specifier: link:../genie
     version: link:../genie
-  '@dashkite/genie-modules':
-    specifier: link:../genie-modules
-    version: link:../genie-modules
+  '@dashkite/genie-coffee':
+    specifier: link:../genie-coffee
+    version: link:../genie-coffee
+  '@dashkite/genie-yaml':
+    specifier: link:../genie-yaml
+    version: link:../genie-yaml
   '@dashkite/runes':
     specifier: link:../runes
     version: link:../runes
