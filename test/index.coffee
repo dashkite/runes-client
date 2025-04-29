@@ -16,8 +16,6 @@ import authorization from "./authorization"
 
 globalThis.Sky =
   fetch: ( request ) ->
-    # TODO possibly switch back to target using helper 
-    #      to derive target from resource?
     { resource } = request
     switch resource.name
       when "description"
