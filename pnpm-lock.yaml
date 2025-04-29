@@ -45,6 +45,9 @@ importers:
       '@dashkite/runes':
         specifier: link:../runes
         version: link:../runes
+      '@dashkite/vista':
+        specifier: link:../vista
+        version: link:../vista
 
 packages:
 
