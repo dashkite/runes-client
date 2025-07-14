@@ -35,5 +35,9 @@
   "dependencies": {
     "@dashkite/joy": "^0.3.16",
     "panda-confidential": "^3.1.2"
-  }
+  },
+  "files": [
+    "build/browser/src",
+    "build/node/src"
+  ]
 }
